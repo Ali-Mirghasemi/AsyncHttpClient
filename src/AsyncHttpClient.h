@@ -2,6 +2,7 @@
 #define HttpClient_h
 
 #include <Arduino.h>
+#include <IPAddress.h>
 #include "AsyncTCP.h"
 
 static const int HTTP_ERROR_CONNECTION_FAILED = -1;
@@ -15,12 +16,14 @@ enum HttpMethod {
 
 enum HttpState {
 	IDLE,
+	START,
 	READING_STATUS_LINE,
 	READING_HEADERS,
 	READING_BODY
 };
 
 struct Request {
+	IPAddress address;
 	String hostname;
 	uint16_t port;
 	String path;
@@ -31,10 +34,10 @@ struct Request {
 };
 
 struct Response {
-	uint8_t statusCode;
-	String statusText;
-	String contentType;
-	size_t contentSize;
+	uint8_t statusCode = 0;
+	String statusText = "";
+	String contentType = "";
+	size_t contentSize = 0;
 	String *headers;
 };
 
@@ -45,6 +48,7 @@ typedef std::function<void(int error)> ErrorHandler;
 class AsyncHttpClient {
 	public:
 		AsyncHttpClient(String hostname, int port);
+		AsyncHttpClient(IPAddress address, int port);
 		void onResponse(ResponseHandler handler);
 		void onData(DataHandler handler);
 		void onError(ErrorHandler handler);
@@ -56,12 +60,12 @@ class AsyncHttpClient {
 		HttpState state;
 		Request request;
 		Response response;
-		ResponseHandler responseHandler;
-		DataHandler dataHandler;
-		ErrorHandler errorHandler;
-		bool connected = false;
+		ResponseHandler responseHandler = NULL;
+		DataHandler dataHandler = NULL;
+		ErrorHandler errorHandler = NULL;
 		size_t bodyDownloadedSize;
-		void connect();
+		void init();
+		void startRequest();
 		void sendRequest();
 		void processStatusLine(String line);
 		void processHeaderLine(String line);

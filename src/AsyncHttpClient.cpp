@@ -2,9 +2,20 @@
 #include <AsyncTCP.h>
 #include "AsyncHttpClient.h"
 
+AsyncHttpClient::AsyncHttpClient(IPAddress address, int port) {
+	request.address = address;
+	request.port = port;
+	init();
+}
+
 AsyncHttpClient::AsyncHttpClient(String hostname, int port) {
 	request.hostname = hostname;
 	request.port = port;
+	init();
+}
+
+void AsyncHttpClient::init() {
+	responseHandler = NULL;
 	dataHandler = NULL;
 	errorHandler = NULL;
 	client = new AsyncClient();
@@ -27,27 +38,35 @@ void AsyncHttpClient::onResponse(ResponseHandler handler) {
 	responseHandler = handler;
 }
 
-void AsyncHttpClient::connect() {
-	if (!connected)
-		client->connect(request.hostname.c_str(), request.port);	
+void AsyncHttpClient::startRequest() {
+	if (!client->connected()) {
+		if (request.hostname != "")
+			client->connect(request.hostname.c_str(), request.port);	
+		else
+			client->connect(request.address, request.port);	
+		return;
+	}
+	state = READING_STATUS_LINE;
+	sendRequest();
 }
 
 void AsyncHttpClient::handleConnect() {
-	connected = true;
-	if (request.path)
-		sendRequest();
+	state = READING_STATUS_LINE;
+	sendRequest();
 }
 
 void AsyncHttpClient::handleDisconnect() {
-	connected = false;
+	state = IDLE;
 }
 
 void AsyncHttpClient::handleTimeout(int timeout) {
+	state = IDLE;
 	if (errorHandler != NULL)
 		errorHandler(HTTP_ERROR_TIMED_OUT);
 }
 
 void AsyncHttpClient::handleError(int error) {
+	state = IDLE;
 	if (errorHandler != NULL)
 		errorHandler(HTTP_ERROR_CONNECTION_FAILED);
 }
@@ -58,21 +77,26 @@ void AsyncHttpClient::handleData(char *data, size_t length) {
 		String line = "";
 		while (index < length) {
 			char c = data[index];
+			index++;
 			if (c == '\n')
 				break;
 			else if (c != '\r')
 				line += c;
-			index++;
 		}
 		if (state == READING_STATUS_LINE) {
 			processStatusLine(line);
 			state = READING_HEADERS;
 		} else if (state == READING_HEADERS) {
-			if (line)
+			if (line.length() != 0)
 				processHeaderLine(line);
-			else
+			else {
 				state = READING_BODY;
+				if (responseHandler != NULL)
+					responseHandler(response);
+			}
 		}
+		if (index == length)
+			break;
 	}
 	if (state == READING_BODY) {
 		size_t size = length - index;
@@ -111,23 +135,24 @@ void AsyncHttpClient::processStatusLine(String line) {
 }
 
 void AsyncHttpClient::processHeaderLine(String line) {
-	int split = line.indexOf(': ');
+	unsigned long split = line.indexOf(": ");
 	String headerName = line.substring(0, split);
 	String headerValue = line.substring(split + 2);
 	if (!strcasecmp(headerName.c_str(), "content-length"))
 		response.contentSize = headerValue.toInt();
-	if (!strcasecmp(headerName.c_str(), "content-type"))
+	if (!strcasecmp(headerName.c_str(), "content-type")) {
 		response.contentType = headerValue;
-
-	int headersSize = sizeof(response.headers) / sizeof(String);
-	String *h = new String[headersSize + 1];
-	std::copy(response.headers, response.headers + headersSize, h);
-	delete[] response.headers;
-	response.headers = h;
-	response.headers[headersSize + 1] = line;
+	}
+//	int headersSize = sizeof(response.headers) / sizeof(String);
+//	String *h = new String[headersSize + 1];
+//	std::copy(response.headers, response.headers + headersSize, h);
+//	delete[] response.headers;
+//	response.headers = h;
+//	response.headers[headersSize + 1] = line;
 }
 
 void AsyncHttpClient::sendRequest() {
+	Serial.println("sendRequest");
 	String s;
 	if (request.method == GET)
 		s = "GET";
@@ -151,7 +176,7 @@ void AsyncHttpClient::get(String path) {
 	request.contentType = "";
 	request.data = NULL;
 	request.dataSize = 0;
-	connect();
+	startRequest();
 }
 
 void AsyncHttpClient::post(String path, String contentType, char *data, size_t len) {
@@ -160,5 +185,5 @@ void AsyncHttpClient::post(String path, String contentType, char *data, size_t l
 	request.contentType = contentType;
 	request.data = data;
 	request.dataSize = len;
-	connect();
+	startRequest();
 }
