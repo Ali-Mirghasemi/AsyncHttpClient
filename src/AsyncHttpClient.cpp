@@ -140,9 +140,8 @@ void AsyncHttpClient::processHeaderLine(String line) {
 	String headerValue = line.substring(split + 2);
 	if (!strcasecmp(headerName.c_str(), "content-length"))
 		response.contentSize = headerValue.toInt();
-	if (!strcasecmp(headerName.c_str(), "content-type")) {
+	if (!strcasecmp(headerName.c_str(), "content-type"))
 		response.contentType = headerValue;
-	}
 //	int headersSize = sizeof(response.headers) / sizeof(String);
 //	String *h = new String[headersSize + 1];
 //	std::copy(response.headers, response.headers + headersSize, h);
