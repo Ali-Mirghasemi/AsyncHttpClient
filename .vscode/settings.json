@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "iosfwd": "c",
+        "list": "c",
+        "regex": "c",
+        "string": "c",
+        "xhash": "c",
+        "xiosbase": "c",
+        "xlocale": "c",
+        "xlocbuf": "c",
+        "xstring": "c",
+        "vector": "c",
+        "memory": "c",
+        "xmemory": "c",
+        "xutility": "c",
+        "cmath": "c",
+        "functional": "c",
+        "type_traits": "c"
+    }
+}

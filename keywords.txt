@@ -1,0 +1,8 @@
+AsyncHttpClient KEYWORD1
+
+onResponse      KEYWORD2
+onData          KEYWORD2
+onError         KEYWORD2
+client          KEYWORD2
+get             KEYWORD2
+post            KEYWORD2
